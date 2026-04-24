@@ -1,0 +1,41 @@
+name: Clean LIVE TV M3U
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  clean-m3u:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download M3U
+        run: |
+          curl -L "https://raw.githubusercontent.com/Sagar878796/Nagin/refs/heads/main/playlist.m3u" -o full.m3u
+
+      - name: Filter LIVE TV only
+        run: |
+          awk '
+          BEGIN {RS="#EXTINF"; ORS=""}
+          /group-title="Movies"|group-title="Series"|group-title="VOD"|\.mp4/ {next}
+          {
+            if ($0 ~ /^:-1/) {
+              print "#EXTINF" $0
+            }
+          }' full.m3u > live.m3u
+
+      - name: Fix header
+        run: |
+          sed -i '1i #EXTM3U' live.m3u
+
+      - name: Commit & Push
+        run: |
+          git config --global user.name "m3u-bot"
+          git config --global user.email "bot@example.com"
+          git add live.m3u
+          git commit -m "Auto update LIVE TV playlist" || echo "No changes"
+          git push
